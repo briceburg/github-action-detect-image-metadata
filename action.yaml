@@ -1,0 +1,56 @@
+name: detect-image-metadata
+description: An action to determine docker image tags and labels based on GitHub events and refs.
+inputs:
+  image-name:
+    description: Image name being built, without tag. e.g. acme/foo
+    default: ${{ github.repository }}
+  image-registry: 
+    description: Image registry, e.g. 'docker.io'.
+    default: ghcr.io
+  
+outputs:
+  extra-tags:
+    description: Comma separated list of additional tags (in addition to version tag).
+    value: ${{ steps.extra.outputs.tags }}
+  image:
+    description: Primary (first) image
+    value: ${{ inputs.image-registry }}/${{ inputs.image-name }}:${{ steps.meta.outputs.version }}
+  images:
+    description: Newline separated list of all images.
+    value: ${{ steps.meta.outputs.tags }}
+  labels:
+    description: Newline separated list of labels.
+    value: ${{ steps.meta.outputs.labels }}
+  name:
+    description: Image Name
+    value: ${{ inputs.image-name }}
+  registry:
+    description: Image Registry
+    value: ${{ inputs.image-registry }}
+  version: 
+    description: Image Version (primary image tag)
+    value: ${{ steps.meta.outputs.version }}
+  
+runs:
+  using: "composite"
+  steps:
+  - name: Determine Image Metadata (tags, labels)
+    id: meta
+    uses: docker/metadata-action@369eb591f429131d6889c46b94e711f089e6ca96 # v5.6.1
+    with:
+      images: ${{ inputs.image-registry }}/${{ inputs.image-name }}
+      tags: |
+        type=schedule,priority=10
+        type=ref,event=tag,priority=9
+        type=sha,format=short,prefix=commit-,priority=8
+        type=raw,value=build-{{date 'YYYYMMDD-HHmmss'}},priority=6
+        type=ref,event=pr,priority=5
+        type=ref,event=branch,priority=5
+        
+  - id: extra
+    uses: actions/github-script@v7
+    with:
+      script: |
+        extraImages=JSON.parse(process.env.DOCKER_METADATA_OUTPUT_JSON).tags.slice(1);
+        extraTags=extraImages.map((i) => i.split(':')[1]);
+        core.setOutput('tags', extraTags.join(','));
