@@ -45,7 +45,7 @@ runs:
         type=sha,format=short,prefix=commit-,priority=8
         type=raw,value=build-{{date 'YYYYMMDD-HHmmss'}},priority=6
         type=ref,event=pr,priority=5
-        type=ref,event=branch,priority=5
+        type=ref,event=branch,prefix=branch-,priority=5
         
   - id: extra
     uses: actions/github-script@v7
